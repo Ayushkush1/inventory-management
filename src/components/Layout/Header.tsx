@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useInventory } from '../../context/InventoryContext';
 import { useLocation } from 'react-router-dom';
 import { Edit2, Save, X } from 'lucide-react';
