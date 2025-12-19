@@ -48,7 +48,7 @@ const Stock = () => {
         // If search matches exactly one barcode, open modal automatically
         const exactMatch = products.find(p => p.barcode === searchTerm);
         if (exactMatch) {
-            handleOpenModal(exactMatch, 'in'); // Default to 'in'
+            handleOpenModal(exactMatch, 'out'); // Default to 'out' (Sell)
         }
     };
 
@@ -196,6 +196,7 @@ const Stock = () => {
                                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Current Weight</th>
                                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Est. Price</th>
                                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-center">Current Qty</th>
+                                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-center">Status</th>
                                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
                             </tr>
                         </thead>
@@ -204,6 +205,8 @@ const Stock = () => {
                                 filteredProducts.map(product => {
                                     const category = categories.find(c => c.id === product.categoryId);
                                     const currentPrice = useInventory().calculatePrice ? useInventory().calculatePrice(product) : 0;
+                                    const isSold = product.quantity === 0;
+
                                     return (
                                         <tr key={product.id} className="hover:bg-slate-50/80 transition-colors group">
                                             <td className="px-6 py-4">
@@ -242,15 +245,18 @@ const Stock = () => {
                                                     {product.quantity}
                                                 </span>
                                             </td>
+                                            <td className="px-6 py-4 text-center">
+                                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${!isSold
+                                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                                                    : 'bg-rose-50 text-rose-700 border-rose-100'
+                                                    }`}>
+                                                    <span className={`w-1.5 h-1.5 rounded-full ${!isSold ? 'bg-emerald-500' : 'bg-rose-500'}`}></span>
+                                                    {!isSold ? 'In Stock' : 'Sold'}
+                                                </span>
+                                            </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex justify-end gap-3">
-                                                    <button
-                                                        onClick={() => handleOpenModal(product, 'in')}
-                                                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100 transition-colors text-xs font-bold"
-                                                    >
-                                                        <ArrowDownRight size={14} /> Stock In
-                                                    </button>
-                                                    {filter !== 'out' && (
+                                                    {!isSold && (
                                                         <button
                                                             onClick={() => handleOpenModal(product, 'out')}
                                                             className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-50 text-rose-700 border border-rose-100 hover:bg-rose-100 transition-colors text-xs font-bold"
