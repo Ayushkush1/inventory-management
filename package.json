@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "server:dev": "tsx watch server/index.ts",
     "server:build": "tsc --project tsconfig.server.json",
-    "db:seed": "tsx server/seed.ts"
+    "db:seed": "tsx server/seed.ts",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.89.0",

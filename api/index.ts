@@ -32,8 +32,13 @@ app.get('/api/health', (req, res) => {
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-    console.error(err.stack);
-    res.status(500).json({ message: err.message || 'Something went wrong!' });
+    console.error('Server Error:', err);
+    // Return detailed error in production for debugging (remove this later!)
+    res.status(500).json({
+        message: err.message || 'Internal Server Error',
+        stack: err.stack,
+        detail: err
+    });
 });
 
 export default app;
