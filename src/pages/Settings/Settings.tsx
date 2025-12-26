@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { User, Lock, Mail, Phone, Camera, Save, Shield, Layers, Plus, Trash2, ChevronRight, ChevronDown, Package } from 'lucide-react';
 import Toast from '../../components/ui/Toast';
 import { useInventory } from '../../context/InventoryContext';
+
 import type { MetalType } from '../../types';
 
 const Settings = () => {
     const { categories, subCategories, addCategory, addSubCategory, deleteCategory, deleteSubCategory } = useInventory();
+
 
     // Mock Profile State
     const [profile, setProfile] = useState({

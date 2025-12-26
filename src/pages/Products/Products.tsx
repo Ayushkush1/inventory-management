@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useInventory } from '../../context/InventoryContext';
+import { usePermissions } from '../../hooks/usePermissions';
 import type { Product, MetalType } from '../../types';
 import { Plus, Search, Barcode, X, Save, Printer, Trash2, Pencil, CircleCheck } from 'lucide-react';
 import JsBarcode from 'jsbarcode';
@@ -9,6 +10,7 @@ import Toast from '../../components/ui/Toast';
 
 const Products = () => {
     const { products, categories, subCategories, addProduct, updateProduct, metalRates, deleteProduct, addCategory, addSubCategory } = useInventory();
+    const { canAddProduct, canEditProduct, canDeleteProduct } = usePermissions();
     const [searchParams, setSearchParams] = useSearchParams();
 
     // View State
@@ -230,13 +232,15 @@ const Products = () => {
                     </div>
                 </div>
 
-                <button
-                    className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-xl text-sm font-medium shadow-lg shadow-slate-900/20 transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
-                    onClick={() => { resetForm(); setView('form'); generateBarcode(true); }}
-                >
-                    <Plus size={18} />
-                    <span>Add Product</span>
-                </button>
+                {canAddProduct && (
+                    <button
+                        className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-xl text-sm font-medium shadow-lg shadow-slate-900/20 transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
+                        onClick={() => { resetForm(); setView('form'); generateBarcode(true); }}
+                    >
+                        <Plus size={18} />
+                        <span>Add Product</span>
+                    </button>
+                )}
             </div>
 
             {notification && (
@@ -379,20 +383,24 @@ const Products = () => {
                                                     >
                                                         <Printer size={16} />
                                                     </button>
-                                                    <button
-                                                        onClick={() => handleEdit(product)}
-                                                        className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors group/btn"
-                                                        title="Edit Product"
-                                                    >
-                                                        <Pencil size={16} />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => setDeleteConfirmation({ isOpen: true, productId: product.id })}
-                                                        className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors group/btn"
-                                                        title="Delete Product"
-                                                    >
-                                                        <Trash2 size={16} />
-                                                    </button>
+                                                    {canEditProduct && (
+                                                        <button
+                                                            onClick={() => handleEdit(product)}
+                                                            className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors group/btn"
+                                                            title="Edit Product"
+                                                        >
+                                                            <Pencil size={16} />
+                                                        </button>
+                                                    )}
+                                                    {canDeleteProduct && (
+                                                        <button
+                                                            onClick={() => setDeleteConfirmation({ isOpen: true, productId: product.id })}
+                                                            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors group/btn"
+                                                            title="Delete Product"
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>

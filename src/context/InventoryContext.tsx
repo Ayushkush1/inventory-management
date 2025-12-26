@@ -1,4 +1,6 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { useAuth } from './AuthContext';
+import { inventoryAPI } from '../services/api';
 import type {
     AppState,
     Category,
@@ -11,36 +13,40 @@ import type {
 import { v4 as uuidv4 } from 'uuid';
 
 interface InventoryContextType extends AppState {
-    addCategory: (category: Omit<Category, 'id'>) => string;
-    addSubCategory: (subCategory: Omit<SubCategory, 'id'>) => string;
-    addProduct: (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt' | 'status'>) => void;
-    addTransaction: (transaction: Omit<StockTransaction, 'id' | 'date' | 'timestamp'>) => void;
-    updateMetalRates: (rates: Omit<MetalRate, 'updatedAt'>) => void;
+    addCategory: (category: Omit<Category, 'id' | 'shopId'>) => string;
+    addSubCategory: (subCategory: Omit<SubCategory, 'id' | 'shopId'>) => string;
+    addProduct: (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt' | 'status' | 'shopId'>) => void;
+    addTransaction: (transaction: Omit<StockTransaction, 'id' | 'date' | 'timestamp' | 'shopId'>) => void;
+    updateMetalRates: (rates: Omit<MetalRate, 'updatedAt' | 'shopId'>) => void;
     updateProduct: (id: string, product: Partial<Product>) => void;
     deleteProduct: (id: string) => void;
-    updateShopSettings: (settings: Omit<ShopSettings, 'updatedAt'>) => void;
+    updateShopSettings: (settings: Omit<ShopSettings, 'updatedAt' | 'shopId'>) => void;
     deleteCategory: (id: string) => void;
     deleteSubCategory: (id: string) => void;
     calculatePrice: (product: Product) => number;
+    isLoading: boolean;
 }
 
 const InventoryContext = createContext<InventoryContextType | undefined>(undefined);
 
-const INITIAL_STATE: AppState = {
+const INITIAL_STATE: Omit<AppState, 'shops' | 'users'> = {
     categories: [],
     subCategories: [],
     products: [],
     transactions: [],
-    metalRates: { goldRate: 0, silverRate: 0, updatedAt: new Date().toISOString() },
-    shopSettings: { shopName: 'JEWELLERY STORE', updatedAt: new Date().toISOString() },
+    metalRates: { goldRate: 0, silverRate: 0, shopId: '', updatedAt: new Date().toISOString() },
+    shopSettings: { shopName: 'JEWELLERY STORE', shopId: '', updatedAt: new Date().toISOString() },
 };
 
-export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [state, setState] = useState<AppState>(() => {
+export const InventoryProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+    const { currentUser } = useAuth();
+    const shopId = currentUser?.shopId || '';
+    const [isLoading, setIsLoading] = useState(false);
+
+    const [state, setState] = useState<Omit<AppState, 'shops' | 'users'>>(() => {
         const saved = localStorage.getItem('inventory_app_v1');
         if (saved) {
             const parsed = JSON.parse(saved);
-            // Migration: Add shopSettings if it doesn't exist
             return {
                 ...INITIAL_STATE,
                 ...parsed,
@@ -50,12 +56,57 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return INITIAL_STATE;
     });
 
+    // Load data from API when shopId is available
     useEffect(() => {
-        localStorage.setItem('inventory_app_v1', JSON.stringify(state));
-    }, [state]);
+        if (shopId && currentUser) {
+            loadDataFromAPI();
+        }
+    }, [shopId, currentUser]);
 
-    const addCategory = (category: Omit<Category, 'id'>) => {
-        const newCategory = { ...category, id: uuidv4() };
+    const loadDataFromAPI = async () => {
+        if (!shopId) return;
+
+        setIsLoading(true);
+        try {
+            const [categories, subCategories, products, transactions, metalRates, shopSettings] = await Promise.all([
+                inventoryAPI.getCategories(shopId),
+                inventoryAPI.getSubCategories(shopId),
+                inventoryAPI.getProducts(shopId),
+                inventoryAPI.getTransactions(shopId),
+                inventoryAPI.getMetalRates(shopId),
+                inventoryAPI.getShopSettings(shopId)
+            ]);
+
+            setState({
+                categories: categories || [],
+                subCategories: subCategories || [],
+                products: products || [],
+                transactions: transactions || [],
+                metalRates: metalRates || INITIAL_STATE.metalRates,
+                shopSettings: shopSettings || INITIAL_STATE.shopSettings,
+            });
+        } catch (error) {
+            console.error('Failed to load inventory data:', error);
+            // Fall back to localStorage
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Save to localStorage for backward compatibility
+    useEffect(() => {
+        if (!shopId) {
+            localStorage.setItem('inventory_app_v1', JSON.stringify(state));
+        }
+    }, [state, shopId]);
+
+    const addCategory = (category: Omit<Category, 'id' | 'shopId'>) => {
+        const newCategory = { ...category, id: uuidv4(), shopId };
+
+        if (shopId) {
+            inventoryAPI.createCategory(newCategory).catch(console.error);
+        }
+
         setState(prev => ({
             ...prev,
             categories: [...prev.categories, newCategory]
@@ -63,8 +114,13 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return newCategory.id;
     };
 
-    const addSubCategory = (subCategory: Omit<SubCategory, 'id'>) => {
-        const newSub = { ...subCategory, id: uuidv4() };
+    const addSubCategory = (subCategory: Omit<SubCategory, 'id' | 'shopId'>) => {
+        const newSub = { ...subCategory, id: uuidv4(), shopId };
+
+        if (shopId) {
+            inventoryAPI.createSubCategory(newSub).catch(console.error);
+        }
+
         setState(prev => ({
             ...prev,
             subCategories: [...prev.subCategories, newSub]
@@ -72,13 +128,14 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return newSub.id;
     };
 
-    const addProduct = (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt' | 'status'>) => {
+    const addProduct = (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt' | 'status' | 'shopId'>) => {
         const newId = uuidv4();
         const timestamp = new Date().toISOString();
 
         const newProduct: Product = {
             ...product,
             id: newId,
+            shopId,
             status: 'Active',
             createdAt: timestamp,
             updatedAt: timestamp
@@ -90,11 +147,19 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             productId: newId,
             type: 'STOCK_IN',
             quantity: product.quantity,
-            weight: product.weight * product.quantity, // Total weight added
+            weight: product.weight * product.quantity,
             reason: 'Purchase',
             date: timestamp,
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            shopId
         };
+
+        if (shopId) {
+            Promise.all([
+                inventoryAPI.createProduct(newProduct),
+                inventoryAPI.createTransaction(initialTransaction)
+            ]).catch(console.error);
+        }
 
         setState(prev => ({
             ...prev,
@@ -103,81 +168,105 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         }));
     };
 
-    const updateProduct = (id: string, updates: Partial<Product>) => {
-        setState(prev => ({
-            ...prev,
-            products: prev.products.map(p => p.id === id ? { ...p, ...updates, updatedAt: new Date().toISOString() } : p)
-        }));
-    };
-
-    const updateMetalRates = (rates: Omit<MetalRate, 'updatedAt'>) => {
-        setState(prev => ({
-            ...prev,
-            metalRates: {
-                ...rates,
-                updatedAt: new Date().toISOString()
-            }
-        }));
-    };
-
-    const addTransaction = (transaction: Omit<StockTransaction, 'id' | 'date' | 'timestamp'>) => {
-        const newTx: StockTransaction = {
+    const addTransaction = (transaction: Omit<StockTransaction, 'id' | 'date' | 'timestamp' | 'shopId'>) => {
+        const newTransaction: StockTransaction = {
             ...transaction,
             id: uuidv4(),
             date: new Date().toISOString(),
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            shopId
         };
 
-        setState(prev => {
-            const updatedProducts = prev.products.map(p => {
-                if (p.id === transaction.productId) {
-                    const isIn = transaction.type === 'STOCK_IN';
-                    return {
-                        ...p,
-                        quantity: isIn ? p.quantity + transaction.quantity : p.quantity - transaction.quantity,
-                        weight: isIn ? p.weight + transaction.weight : p.weight - transaction.weight,
-                    };
-                }
-                return p;
-            });
+        if (shopId) {
+            inventoryAPI.createTransaction(newTransaction).catch(console.error);
+        }
 
-            return {
-                ...prev,
-                transactions: [...prev.transactions, newTx],
-                products: updatedProducts
-            };
-        });
+        setState(prev => ({
+            ...prev,
+            transactions: [...prev.transactions, newTransaction]
+        }));
+    };
+
+    const updateMetalRates = (rates: Omit<MetalRate, 'updatedAt' | 'shopId'>) => {
+        const updatedRates = {
+            ...rates,
+            shopId,
+            updatedAt: new Date().toISOString()
+        };
+
+        if (shopId) {
+            inventoryAPI.updateMetalRates(shopId, rates).catch(console.error);
+        }
+
+        setState(prev => ({
+            ...prev,
+            metalRates: updatedRates
+        }));
+    };
+
+    const updateProduct = (id: string, product: Partial<Product>) => {
+        if (shopId) {
+            inventoryAPI.updateProduct(id, product).catch(console.error);
+        }
+
+        setState(prev => ({
+            ...prev,
+            products: prev.products.map(p =>
+                p.id === id ? { ...p, ...product, updatedAt: new Date().toISOString() } : p
+            )
+        }));
     };
 
     const deleteProduct = (id: string) => {
-        setState(prev => ({
-            ...prev,
-            products: prev.products.filter(p => p.id !== id)
-        }));
-    }
+        if (shopId) {
+            inventoryAPI.deleteProduct(id).catch(console.error);
+        }
 
-    const updateShopSettings = (settings: Omit<ShopSettings, 'updatedAt'>) => {
         setState(prev => ({
             ...prev,
-            shopSettings: {
-                ...settings,
-                updatedAt: new Date().toISOString()
-            }
+            products: prev.products.filter(p => p.id !== id),
+            transactions: prev.transactions.filter(t => t.productId !== id)
+        }));
+    };
+
+    const updateShopSettings = (settings: Omit<ShopSettings, 'updatedAt' | 'shopId'>) => {
+        const updatedSettings = {
+            ...settings,
+            shopId,
+            updatedAt: new Date().toISOString()
+        };
+
+        if (shopId) {
+            inventoryAPI.updateShopSettings(shopId, settings).catch(console.error);
+        }
+
+        setState(prev => ({
+            ...prev,
+            shopSettings: updatedSettings
         }));
     };
 
     const deleteCategory = (id: string) => {
+        if (shopId) {
+            inventoryAPI.deleteCategory(id).catch(console.error);
+        }
+
         setState(prev => ({
             ...prev,
             categories: prev.categories.filter(c => c.id !== id),
-            subCategories: prev.subCategories.filter(s => s.categoryId !== id)
+            subCategories: prev.subCategories.filter(sc => sc.categoryId !== id),
+            products: prev.products.filter(p => p.categoryId !== id)
         }));
     };
 
     const deleteSubCategory = (id: string) => {
+        if (shopId) {
+            inventoryAPI.deleteSubCategory(id).catch(console.error);
+        }
+
         setState(prev => ({
             ...prev,
-            subCategories: prev.subCategories.filter(s => s.id !== id)
+            subCategories: prev.subCategories.filter(sc => sc.id !== id)
         }));
     };
 
@@ -202,20 +291,25 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
 
     return (
-        <InventoryContext.Provider value={{
-            ...state,
-            addCategory,
-            addSubCategory,
-            addProduct,
-            addTransaction,
-            updateMetalRates,
-            updateProduct,
-            deleteProduct,
-            deleteCategory,
-            deleteSubCategory,
-            updateShopSettings,
-            calculatePrice
-        }}>
+        <InventoryContext.Provider
+            value={{
+                ...state,
+                shops: [],
+                users: [],
+                addCategory,
+                addSubCategory,
+                addProduct,
+                addTransaction,
+                updateMetalRates,
+                updateProduct,
+                deleteProduct,
+                updateShopSettings,
+                deleteCategory,
+                deleteSubCategory,
+                calculatePrice,
+                isLoading
+            }}
+        >
             {children}
         </InventoryContext.Provider>
     );

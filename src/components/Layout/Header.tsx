@@ -1,17 +1,28 @@
 
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useInventory } from '../../context/InventoryContext';
+import { useAuth } from '../../context/AuthContext';
+import { usePermissions } from '../../hooks/usePermissions';
 import { useLocation } from 'react-router-dom';
-import { Edit2, Save, X } from 'lucide-react';
+import { Edit2, Save, X, LogOut } from 'lucide-react';
 import Toast from '../ui/Toast';
 
 const Header = () => {
     const { metalRates, updateMetalRates } = useInventory();
+    const { currentUser, logout } = useAuth();
+    const { canUpdateMetalRates } = usePermissions();
+    const navigate = useNavigate();
     const location = useLocation();
     const [isRateModalOpen, setIsRateModalOpen] = useState(false);
     const [editingMetal, setEditingMetal] = useState<'Gold' | 'Silver' | null>(null);
     const [newRate, setNewRate] = useState('');
     const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
+
+    const handleLogout = async () => {
+        await logout();
+        navigate('/login');
+    };
 
     const openRateModal = (metal: 'Gold' | 'Silver') => {
         setEditingMetal(metal);
@@ -83,36 +94,54 @@ const Header = () => {
                     <div className="flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg bg-amber-100/50 border border-amber-100/50">
                         <span className="text-amber-700 font-medium">Gold:</span>
                         <span className="font-semibold text-amber-900">{formatCurrency(metalRates.goldRate)}/gm</span>
-                        <button
-                            onClick={() => openRateModal('Gold')}
-                            className="p-1 hover:bg-amber-200/50 rounded transition-colors text-amber-700 ml-1"
-                            title="Update Gold Rate"
-                        >
-                            <Edit2 size={12} />
-                        </button>
+                        {canUpdateMetalRates && (
+                            <button
+                                onClick={() => openRateModal('Gold')}
+                                className="p-1 hover:bg-amber-200/50 rounded transition-colors text-amber-700 ml-1"
+                                title="Update Gold Rate"
+                            >
+                                <Edit2 size={12} />
+                            </button>
+                        )}
                     </div>
                     <div className="flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg bg-slate-100/70 border border-slate-200/50">
                         <span className="text-slate-600 font-medium">Silver:</span>
                         <span className="font-semibold text-slate-900">{formatCurrency(metalRates.silverRate)}/gm</span>
-                        <button
-                            onClick={() => openRateModal('Silver')}
-                            className="p-1 hover:bg-slate-200/50 rounded transition-colors text-slate-600 ml-1"
-                            title="Update Silver Rate"
-                        >
-                            <Edit2 size={12} />
-                        </button>
+                        {canUpdateMetalRates && (
+                            <button
+                                onClick={() => openRateModal('Silver')}
+                                className="p-1 hover:bg-slate-200/50 rounded transition-colors text-slate-600 ml-1"
+                                title="Update Silver Rate"
+                            >
+                                <Edit2 size={12} />
+                            </button>
+                        )}
                     </div>
                 </div>
 
                 {/* Profile */}
                 <div className="flex items-center gap-3 pl-6 border-l border-slate-200/60">
-                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center font-semibold text-white text-sm shadow-sm">
-                        AD
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center font-semibold text-white text-sm shadow-sm ${currentUser?.role === 'SHOP_OWNER'
+                        ? 'bg-gradient-to-br from-indigo-600 to-indigo-700'
+                        : 'bg-gradient-to-br from-emerald-600 to-emerald-700'
+                        }`}>
+                        {currentUser?.name?.substring(0, 2).toUpperCase() || 'AD'}
                     </div>
                     <div className="text-sm">
-                        <div className="font-semibold text-slate-900">Admin</div>
-                        <div className="text-xs text-slate-500">Manager</div>
+                        <div className="font-semibold text-slate-900">{currentUser?.name || 'Admin'}</div>
+                        <div className={`text-xs font-medium ${currentUser?.role === 'SHOP_OWNER' ? 'text-indigo-600' : 'text-emerald-600'
+                            }`}>
+                            {currentUser?.role === 'SHOP_OWNER' ? 'Shop Owner' :
+                                currentUser?.role === 'SHOP_MANAGER' ? 'Shop Manager' : 'Admin'}
+                        </div>
                     </div>
+                    <button
+                        onClick={handleLogout}
+                        className="ml-2 p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-600 hover:text-slate-900"
+                        title="Logout"
+                    >
+                        <LogOut size={18} />
+                    </button>
                 </div>
             </div>
             {/* Notification Toast */}

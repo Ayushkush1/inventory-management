@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { CircleCheck, X, AlertCircle } from 'lucide-react';
+import { useEffect } from 'react';
+import { X, CheckCircle, AlertCircle } from 'lucide-react';
 
 interface ToastProps {
     message: string;
@@ -8,7 +8,7 @@ interface ToastProps {
     duration?: number;
 }
 
-const Toast: React.FC<ToastProps> = ({ message, type, onClose, duration = 3000 }) => {
+const Toast = ({ message, type, onClose, duration = 3000 }: ToastProps) => {
     useEffect(() => {
         const timer = setTimeout(() => {
             onClose();
@@ -18,13 +18,26 @@ const Toast: React.FC<ToastProps> = ({ message, type, onClose, duration = 3000 }
     }, [duration, onClose]);
 
     return (
-        <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-3 px-4 py-2.5 rounded-full shadow-2xl border backdrop-blur-md animate-scale-up ${type === 'success' ? 'bg-emerald-900/90 border-emerald-800 text-white' : 'bg-rose-900/90 border-rose-800 text-white'
-            }`}>
-            {type === 'success' ? <CircleCheck size={18} className="text-emerald-400" /> : <AlertCircle size={18} className="text-rose-400" />}
-            <span className="font-medium text-sm pr-2">{message}</span>
-            <button onClick={onClose} className="ml-2 hover:bg-white/20 rounded-full p-0.5 transition-colors">
-                <X size={14} className="text-white/70" />
-            </button>
+        <div className="fixed top-4 right-4 z-50 animate-slide-in-right">
+            <div
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg ${type === 'success'
+                        ? 'bg-emerald-50 border border-emerald-200 text-emerald-800'
+                        : 'bg-rose-50 border border-rose-200 text-rose-800'
+                    }`}
+            >
+                {type === 'success' ? (
+                    <CheckCircle size={20} className="text-emerald-600" />
+                ) : (
+                    <AlertCircle size={20} className="text-rose-600" />
+                )}
+                <p className="font-medium">{message}</p>
+                <button
+                    onClick={onClose}
+                    className="ml-2 p-1 hover:bg-white/50 rounded-lg transition-colors"
+                >
+                    <X size={16} />
+                </button>
+            </div>
         </div>
     );
 };

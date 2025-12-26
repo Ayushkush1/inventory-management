@@ -1,0 +1,188 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  SHOP_OWNER
+  SHOP_MANAGER
+}
+
+enum Permission {
+  VIEW_INVENTORY
+  ADD_PRODUCT
+  EDIT_PRODUCT
+  DELETE_PRODUCT
+  MANAGE_STOCK
+  VIEW_REPORTS
+  MANAGE_SETTINGS
+  CREATE_SHOP_MANAGER
+  MANAGE_METAL_RATES
+  UPDATE_METAL_RATES
+}
+
+enum MetalType {
+  Gold
+  Silver
+}
+
+enum ProductType {
+  Individual
+  Group
+}
+
+enum TransactionType {
+  STOCK_IN
+  STOCK_OUT
+}
+
+enum StockReason {
+  Sale
+  Damage
+  Transfer
+  Adjustment
+  Purchase
+  Return
+}
+
+enum MakingChargeType {
+  per_gram
+  per_piece
+}
+
+model User {
+  id          String       @id @default(uuid())
+  email       String       @unique
+  password    String
+  name        String
+  role        UserRole
+  shopId      String?
+  permissions Permission[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  
+  shop        Shop?        @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  ownedShops  Shop[]       @relation("ShopOwner")
+  
+  @@index([email])
+  @@index([shopId])
+}
+
+model Shop {
+  id             String          @id @default(uuid())
+  name           String
+  ownerId        String
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  
+  owner          User            @relation("ShopOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  users          User[]
+  categories     Category[]
+  subCategories  SubCategory[]
+  products       Product[]
+  transactions   StockTransaction[]
+  metalRates     MetalRate?
+  shopSettings   ShopSettings?
+  
+  @@index([ownerId])
+}
+
+model Category {
+  id            String        @id @default(uuid())
+  name          String
+  type          MetalType
+  shopId        String
+  
+  shop          Shop          @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  subCategories SubCategory[]
+  products      Product[]
+  
+  @@index([shopId])
+}
+
+model SubCategory {
+  id          String    @id @default(uuid())
+  name        String
+  categoryId  String
+  shopId      String
+  
+  category    Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  shop        Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  products    Product[]
+  
+  @@index([categoryId])
+  @@index([shopId])
+}
+
+model Product {
+  id              String            @id @default(uuid())
+  itemType        ProductType
+  categoryId      String
+  subCategoryId   String?
+  name            String
+  sku             String            @unique
+  barcode         String            @unique
+  hsnCode         String?
+  weight          Float
+  quantity        Int
+  makingCharge    Float
+  makingChargeType MakingChargeType
+  profitPercent   Float
+  status          String            @default("Active")
+  shopId          String
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  
+  category        Category          @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  subCategory     SubCategory?      @relation(fields: [subCategoryId], references: [id], onDelete: SetNull)
+  shop            Shop              @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  transactions    StockTransaction[]
+  
+  @@index([shopId])
+  @@index([categoryId])
+  @@index([barcode])
+  @@index([sku])
+}
+
+model StockTransaction {
+  id         String          @id @default(uuid())
+  productId  String
+  type       TransactionType
+  quantity   Int
+  weight     Float
+  reason     StockReason?
+  date       DateTime        @default(now())
+  timestamp  BigInt
+  shopId     String
+  
+  product    Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  shop       Shop            @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  
+  @@index([productId])
+  @@index([shopId])
+  @@index([date])
+}
+
+model MetalRate {
+  id         String   @id @default(uuid())
+  goldRate   Float
+  silverRate Float
+  shopId     String   @unique
+  updatedAt  DateTime @updatedAt
+  
+  shop       Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+}
+
+model ShopSettings {
+  id        String   @id @default(uuid())
+  shopName  String
+  shopId    String   @unique
+  updatedAt DateTime @updatedAt
+  
+  shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+}

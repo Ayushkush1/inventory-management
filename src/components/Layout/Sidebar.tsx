@@ -1,19 +1,25 @@
 
 import { NavLink } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import {
     LayoutDashboard,
     Package,
     ArrowDownToLine,
     BarChart3,
     Settings,
+    Users,
 } from 'lucide-react';
 
 const Sidebar = () => {
+    const { currentUser } = useAuth();
+    const isShopOwner = currentUser?.role === 'SHOP_OWNER';
+
     const navItems = [
         { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
         { icon: Package, label: 'Products', path: '/products' },
         { icon: ArrowDownToLine, label: 'Stock', path: '/stock' },
         { icon: BarChart3, label: 'Reports', path: '/reports' },
+        ...(isShopOwner ? [{ icon: Users, label: 'Team', path: '/team' }] : []),
         { icon: Settings, label: 'Settings', path: '/settings' },
     ];
 
@@ -22,17 +28,30 @@ const Sidebar = () => {
 
             {/* Logo Section */}
             <div className="h-[80px] flex items-center px-4 mb-2">
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+                <div className="flex items-center gap-3 w-full">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isShopOwner
+                        ? 'bg-indigo-500/10 border border-indigo-500/20 text-indigo-400'
+                        : 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'
+                        }`}>
                         <Package className="w-6 h-6" />
                     </div>
-                    <div>
+                    <div className="flex-1">
                         <span className="font-bold text-lg text-white tracking-tight block leading-tight">
                             Inventory
                         </span>
-                        <span className="text-[10px] font-bold text-slate-500 tracking-widest uppercase block">
-                            Management
-                        </span>
+                        <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold text-slate-500 tracking-widest uppercase">
+                                Management
+                            </span>
+                            {currentUser && (
+                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide ${isShopOwner
+                                    ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
+                                    : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                    }`}>
+                                    {isShopOwner ? 'Owner' : 'Manager'}
+                                </span>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -47,9 +66,10 @@ const Sidebar = () => {
                             const baseClasses = 'flex items-center px-4 py-3.5 rounded-2xl transition-all duration-300 group relative font-medium';
 
                             if (isActive) {
-                                // Specific active colors or unified sleek look
-                                let activeColorClass = 'text-white bg-white/10 shadow-lg shadow-black/5';
-                                if (item.path === '/stock') activeColorClass = 'text-blue-400 bg-blue-400/10';
+                                // Role-based active colors
+                                const activeColorClass = isShopOwner
+                                    ? 'text-indigo-300 bg-indigo-400/10 shadow-lg shadow-indigo-500/5'
+                                    : 'text-emerald-300 bg-emerald-400/10 shadow-lg shadow-emerald-500/5';
 
                                 return `${baseClasses} ${activeColorClass}`;
                             }
