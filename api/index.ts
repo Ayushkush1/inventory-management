@@ -1,3 +1,39 @@
-import app from '../server/index';
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import { PrismaClient } from '@prisma/client';
+import authRoutes from '../server/routes/auth';
+import shopRoutes from '../server/routes/shops';
+import userRoutes from '../server/routes/users';
+import inventoryRoutes from '../server/routes/inventory';
+
+dotenv.config();
+
+const app = express();
+const prisma = new PrismaClient();
+
+// Middleware
+app.use(cors({
+    origin: '*', // Allow all origins for production (you can restrict this if needed)
+    credentials: true
+}));
+app.use(express.json());
+
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/shops', shopRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/inventory', inventoryRoutes);
+
+// Health check
+app.get('/api/health', (req, res) => {
+    res.json({ status: 'ok', message: 'Vercel Serverless Function running' });
+});
+
+// Error handling middleware
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    console.error(err.stack);
+    res.status(500).json({ message: err.message || 'Something went wrong!' });
+});
 
 export default app;
