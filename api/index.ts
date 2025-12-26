@@ -2,10 +2,10 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
-import authRoutes from '../server/routes/auth';
-import shopRoutes from '../server/routes/shops';
-import userRoutes from '../server/routes/users';
-import inventoryRoutes from '../server/routes/inventory';
+import authRoutes from './routes/auth';
+import shopRoutes from './routes/shops';
+import userRoutes from './routes/users';
+import inventoryRoutes from './routes/inventory';
 
 dotenv.config();
 
